@@ -1,0 +1,80 @@
+name: M0-Install-Feasibility
+
+# M0 安装可行性决策门测试
+# 验证 jieba-fast==0.53 在无编译器环境下能否装上
+# DoD: 干净 ubuntu:24.04 无 gcc + 干净 macOS 无 Xcode CLT，pipx install 均退出码 0
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "pyproject.toml"
+      - "src/**"
+      - ".github/workflows/M0-install-feasibility.yml"
+
+jobs:
+  # ========== M0.2: Ubuntu 24.04 无 build-essential ==========
+  ubuntu-no-gcc:
+    name: "M0.2 Ubuntu 24.04 (no build-essential)"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Remove build-essential (simulate clean environment)
+        run: |
+          sudo apt-get purge -y build-essential gcc g++ make 2>/dev/null || true
+          sudo apt-get autoremove -y 2>/dev/null || true
+          # Verify no gcc
+          if command -v gcc; then
+            echo "FAIL: gcc still present at $(which gcc)"
+            exit 1
+          fi
+          echo "OK: gcc not found"
+
+      - name: Install pipx and Python 3.12
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pipx python3.12 python3.12-venv python3.12-dev 2>&1 | tail -5
+          pipx ensurepath
+          export PATH="$HOME/.local/bin:$PATH"
+          python3.12 --version
+          pipx --version
+
+      - name: Test 1 — pipx install jieba-fast==0.53 only
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "=== Testing jieba-fast install ==="
+          pipx install jieba-fast==0.53 --python python3.12 2>&1
+          echo "EXIT_CODE=$?"
+
+      - name: Test 2 — pipx install genie-term (this package)
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          pipx install --editable . --python python3.12 --force 2>&1
+          echo "EXIT_CODE=$?"
+
+  # ========== M0.2b: macOS 无 Xcode CLT ==========
+  macos-no-clt:
+    name: "M0.2b macOS (no Xcode CLT)"
+    runs-on: macos-latest
+    steps:
+      - name: Check Xcode CLT status
+        run: |
+          # GitHub Actions macOS runner 通常预装 Xcode CLT
+          # 我们先检查状态
+          xcode-select -p 2>&1 || echo "No CLT path"
+          pkgutil --pkg-info=com.apple.pkg.CLTools_Executables 2>&1 || echo "No CLT pkg"
+          which clang 2>&1 || echo "No clang"
+          clang --version 2>&1 | head -2 || true
+
+      - name: Install pipx
+        run: |
+          brew install pipx
+          pipx ensurepath
+          export PATH="$HOME/.local/bin:$PATH"
+          pipx --version
+
+      - name: Test pipx install jieba-fast==0.53
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "=== Testing jieba-fast on macOS ==="
+          pipx install jieba-fast==0.53 2>&1
+          echo "EXIT_CODE=$?"

@@ -1,0 +1,67 @@
+# genie-tts-unix —— 受控 fork of genie-tts 2.0.2
+# 仅修改依赖声明以解决 Unix-like 安装问题：
+#   1. jieba_fast (sdist-only, 需要 gcc/clang) → jieba (纯 Python, 多平台 wheel)
+#   2. onnxruntime==1.22.1 (已从 PyPI 下架) → onnxruntime>=1.16,<2 (宽松约束)
+# 核心 TTS 逻辑零改动。
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genie-tts-unix"
+version = "2.0.2"
+authors = [
+    { name = "High_Logic", email = "highlogic233@gmail.com" },
+    { name = "genie-term contributors" },
+]
+description = "Controlled fork of genie-tts for Unix-like (Linux/macOS) installability"
+requires-python = ">=3.10,<3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "onnx",
+    "onnxruntime>=1.16,<2",  # 原 pin ==1.22.1 已下架，放宽到当前可用版本
+    "tokenizers",
+    "numpy",
+    "soundfile",
+    "soxr",
+    "pyyaml",
+    "sounddevice",
+    "pydantic",
+    "huggingface_hub[hf_xet]",
+    "fastapi",
+    "uvicorn[standard]",
+    "pyopenjtalk-plus",
+    "nltk",
+    "pypinyin",
+    "g2pM",
+    "jieba>=0.42.1",  # 原 jieba_fast (sdist-only) → jieba (纯 Python 多平台 wheel)
+]
+
+[project.urls]
+Homepage = "https://github.com/High-Logic/Genie"
+Fork-Info = "https://github.com/genie-term/genie-tts-unix"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"genie_tts" = [
+    "Data/v2/Models/*",
+    "Data/v2/Keys/*",
+    "Data/v2ProPlus/Models/*",
+    "Data/v2ProPlus/Keys/*",
+]

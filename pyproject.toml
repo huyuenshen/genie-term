@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "genie-term"
+version = "0.0.1a0"
+description = "Unix-like native GenieTTS CLI wrapper"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "genie-tts-unix==2.0.2",  # Controlled fork: jieba→jieba_fast + onnxruntime pin relaxed
+    "typer>=0.12,<1",
+    "rich>=13,<15",
+    "platformdirs>=4,<5",
+    "tomli>=2; python_version<'3.11'",
+    "tomli-w>=1,<2",
+]
+
+[project.scripts]
+genie-term = "genie_term.cli:main"
+
+[project.optional-dependencies]
+convert = ["torch"]
+dev = [
+    "pytest>=8,<10",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/genie_term"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "I", "UP", "B", "S", "TRY", "C4", "SIM",
+]
+ignore = [
+    "BLE001",   # 项目中多处合理捕获 Exception（doctor、adapter）
+    "TRY003",   # GenieTermError 需在构造时传入 message/location/fix
+    "TRY203",   # 部分 try-except-pass 是显式意图
+    "TRY300",   # 简化风格选择
+    "S110",     # 同 BLE001
+    "S112",     # 同 BLE001
+    "S310",     # urllib 访问白名单 URL（HF 端点）
+    "S603",     # subprocess 参数来自我们内部
+    "RUF002",   # 中文注释允许全角标点
+    "RUF003",   # 同上
+    "E402",     # doctor.py 的 GENIE_DATA_REQUIRED 导入位置
+    "E501",     # 暂时放宽行长度限制
+    "B904",     # raise from 风格
+    "TRY301",   # 抽象 raise 到内部函数
+    "S104",     # 0.0.0.0 监听检查（我们有自己的安全逻辑）
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["genie_term"]
