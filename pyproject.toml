@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "genie-term"
-version = "0.0.1a0"
+version = "0.1.0"
 description = "Unix-like native GenieTTS CLI wrapper"
 readme = "README.md"
 license = "MIT"
@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/genie-term/genie-term"
+Homepage = "https://github.com/huyuenshen/genie-term"
 Upstream = "https://github.com/High-Logic/Genie"
 
 [project.scripts]
