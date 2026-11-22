@@ -1,7 +1,7 @@
 # DECISION-M0 · 安装可行性决策门结论
 
 > 本文件是 M0 里程碑的最终决策文档。
-> 真相源：`project_rules.md` + PRD §6.8；测试证据来自本地 venv 隔离 + 上游源码审计（`/tmp/tts_check2/genie_tts-2.0.2/`）。
+> 真相源：`.trae/rules/project_rules.md` + PRD §6.8；测试证据来自本地 venv 隔离 + 上游源码审计（`/tmp/tts_check2/genie_tts-2.0.2/`）。
 
 ---
 

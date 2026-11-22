@@ -1,5 +1,7 @@
 # genie-term
 
+简体中文 | [English](README.en.md)
+
 Unix-like 原生 GenieTTS 命令行封装。**一条命令装好，一行命令出声**。
 
 ```bash
@@ -43,7 +45,7 @@ pipx ensurepath && exec $SHELL -l
 ### 2. 安装与初始化
 
 ```bash
-pipx install genie-term       # 安装（< 400ms 冷启动）
+pipx install genie-term       # 安装
 genie-term init               # 下载 GenieData（391MB，首次约 3-5 分钟）
 genie-term doctor             # 环境自检（12 项，有 ✘ → 码 10）
 ```
@@ -53,7 +55,8 @@ genie-term doctor             # 环境自检（12 项，有 ✘ → 码 10）
 ```bash
 genie-term download character feibi       # 下载预置角色（约 230MB）
 genie-term say -c feibi "你好，世界" -o hello.wav
-genie-term play hello.wav                 # 或直接：genie-term say -c feibi "你好" --play
+# 想直接播放：加 --play（需要系统播放器或 PortAudio）
+genie-term say -c feibi "你好" --play
 ```
 
 ---
@@ -106,12 +109,22 @@ genie-term say -c feibi "你好" -o dir/ --if-exists timestamp  # 重名自动�
 
 ```bash
 genie-term convert --pth a.pth --ckpt a.ckpt --name myvoice --register \
-  --prompt-wav ref.wav --prompt-text "参考文本"    # GPT-SoVITS → ONNX + 自动注册
+  --prompt-wav ref.wav --prompt-text "参考文本" --lang zh  # → ONNX + 自动注册
 genie-term serve --port 8000                      # 启动本地 HTTP API（默认 127.0.0.1）
+genie-term serve --port 8000 --json               # 启动后 stdout 打印 {"host","port","docs"}
 genie-term serve --host 0.0.0.0 --allow-public     # 公开监听（⚠ 上游无鉴权，小心）
 genie-term config show                            # 查看配置
 genie-term config set general.default_character feibi
 genie-term completion bash > /etc/bash_completion.d/genie-term  # 自动补全
+```
+
+### 全局选项（PRD §4.1）
+
+```bash
+genie-term --quiet say -c feibi "你好"       # 抑制进度，仅保留错误
+genie-term --no-color doctor                 # 禁用颜色（尊重 NO_COLOR / TERM=dumb）
+genie-term --offline say -c feibi "你好"     # 禁止一切网络请求
+genie-term init --offline --yes              # 仅校验已有资源并打印手动放置路径
 ```
 
 ### 脚本化（CI/批处理）
@@ -180,18 +193,21 @@ Linux (XDG)                              macOS
 ```
 genie-term/
 ├── cli.py                 主入口 + 异常处理链（退出码契约）
+├── context.py             全局选项（--quiet/--no-color/--offline）
 ├── errors.py              7 种 GenieTermError + 退出码映射
 ├── core/
 │   ├── paths.py           platformdirs 目录解析
 │   ├── config.py          config.toml 读写（原子写 + .bak）
 │   ├── registry.py        角色注册表 + 必需文件清单
 │   ├── audio.py           音频校验 + 产物 >1KB 验证
+│   ├── log.py             日志落盘（按天轮转 7 天，文本脱敏）
 │   └── player.py          播放策略链
 ├── engine/
 │   ├── bootstrap.py       GENIE_DATA_DIR / HF_ENDPOINT 注入
 │   └── adapter.py         ⚠ 唯一 import genie_tts 的地方
 ├── download/
 │   ├── genie_data.py      绝对目录 snapshot_download
+│   ├── presets.py         预置角色元数据 + 自动注册
 │   └── verify.py          必需文件校验
 └── commands/              9 个 typer 子命令组
 ```
@@ -209,8 +225,8 @@ genie-term/
 
 ```bash
 pip install -e ".[dev]"          # 安装 + 开发依赖
-pytest -m "not network"          # 跑离线测试（67 个，全绿）
-ruff check src                   # lint（CI 强制通过）
+pytest -m "not network"          # 跑离线测试（81 个，全绿）
+ruff check src tests             # lint（CI 强制通过）
 pipx install --editable .        # 本地 pipx 链路验证
 ```
 
@@ -232,4 +248,4 @@ rm -rf ~/Library/Application\ Support/genie-term ~/Library/Logs/genie-term ~/Lib
 
 ## License
 
-与上游 GenieTTS 保持一致，见 `vendor/genie-tts-unix/LICENSE`。
+与上游 GenieTTS 保持一致（MIT），见根目录 `LICENSE` 与 `vendor/genie-tts-unix/LICENSE`。

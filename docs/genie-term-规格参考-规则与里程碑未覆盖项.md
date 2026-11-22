@@ -1,5 +1,5 @@
-> 本文件收录 **project_rules.md（红线/约束）** 和 **M0–M4 任务清单（执行步骤）** 都没有完整写进、但 Agent 落地代码时必须照着做的「规格细节」。唯一真相源仍是 `docs/PRD.md`（v1.2 Unix 版），本文件只是把它对 Agent 最有用、且前两份文件没展开的部分汇总成一张「照着抄」的参考表。
-> 用法：与 `project_rules.md` + 对应里程碑文件一起交给 TRAE SOLO Agent。写某个命令前，先回本文件查它的完整参数、JSON、异常表，避免凭记忆补错。
+> 本文件收录 **.trae/rules/project_rules.md（红线/约束）** 和 **docs/milestones/ 下的 M0–M4 任务清单（执行步骤）** 都没有完整写进、但 Agent 落地代码时必须照着做的「规格细节」。唯一真相源仍是 `docs/genie-term-PRD-v1.2-Unix版.docx`（v1.2 Unix 版），本文件只是把它对 Agent 最有用、且前两份文件没展开的部分汇总成一张「照着抄」的参考表。
+> 用法：与 `.trae/rules/project_rules.md` + `docs/milestones/` 中对应里程碑文件一起交给 TRAE SOLO Agent。写某个命令前，先回本文件查它的完整参数、JSON、异常表，避免凭记忆补错。
 
 ---
 

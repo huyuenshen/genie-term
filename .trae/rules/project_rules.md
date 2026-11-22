@@ -1,7 +1,7 @@
 # genie-term —— TRAE 项目规则
 
-> 本文件放进仓库 `.trae/rules/project_rules.md`，TRAE SOLO Agent 每次会话自动读取。
-> 这是**约束层**，不是需求全文。需求唯一真相源是 `docs/PRD.md`（即 genie-term-PRD-v1.2-Unix 版）。
+> 本文件位于仓库 `.trae/rules/project_rules.md`，TRAE SOLO Agent 每次会话自动读取。
+> 这是**约束层**，不是需求全文。需求唯一真相源是 `docs/genie-term-PRD-v1.2-Unix版.docx`（即 genie-term-PRD-v1.2-Unix 版）。
 
 ## 0. 项目一句话
 Unix-like 原生 GenieTTS 命令行封装（当前主线平台为 Linux 与 macOS，目标覆盖所有 Unix-like）。目标：干净 Ubuntu 24.04 或干净 macOS 上 `pipx install genie-term`，一条 `genie-term say` 出声，全程不依赖 Wine、不要求用户写 Python。安装方式仅 `pipx install genie-term`。
@@ -15,7 +15,7 @@ Unix-like 原生 GenieTTS 命令行封装（当前主线平台为 Linux 与 macO
 - **禁止**引入 numpy/pandas 自建栈、音频编辑库、GUI 库；**禁止**新增 PRD §6.1 之外的依赖。
 
 ## 2. 规范入口
-`docs/PRD.md` 是唯一真相源；本文件与 PRD 冲突时**以 PRD 为准**。命令规格见 PRD §4，退出码契约见 §4.1，上游陷阱见 §6.4，安装可行性见 §6.8。
+`docs/genie-term-PRD-v1.2-Unix版.docx` 是唯一真相源；本文件与 PRD 冲突时**以 PRD 为准**。命令规格见 PRD §4，退出码契约见 §4.1，上游陷阱见 §6.4，安装可行性见 §6.8。
 
 ## 3. 关键命令（开工/自测基线）
 ```bash
@@ -47,4 +47,4 @@ pipx install --editable .                             # 本地以 pipx 链路验
 - `engine/adapter.py` 是全项目唯一接触上游的地方；`engine/bootstrap.py` 负责 env 注入、离线、镜像、版本检查。
 
 ## 6. 开工顺序（强约束）
-M0 决策门未出结论前，**不许写任何业务代码**。M0 结论（jieba-fast 能否在无 gcc 的 Linux 容器 / 无 Xcode Command Line Tools 的 macOS 上装上）决定走方案 A 还是方案 B，直接影响 README 与依赖声明。任务拆分见 `genie-term-M0到M4开发任务清单.md`。
+M0 决策门未出结论前，**不许写任何业务代码**。M0 结论（jieba-fast 能否在无 gcc 的 Linux 容器 / 无 Xcode Command Line Tools 的 macOS 上装上）决定走方案 A 还是方案 B，直接影响 README 与依赖声明。任务拆分见 `docs/milestones/` 下的 `genie-term-M0.md` 至 `genie-term-M4.md`。

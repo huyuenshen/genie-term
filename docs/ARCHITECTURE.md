@@ -1,7 +1,7 @@
 # genie-term 架构说明
 
 > 本文档描述 genie-term 的分层架构、数据流、红线约束与上游集成策略。
-> 需求唯一真相源是 `docs/PRD.md`（v1.2 Unix 版）；本文件与 PRD 冲突时以 PRD 为准。
+> 需求唯一真相源是 `docs/genie-term-PRD-v1.2-Unix版.docx`（v1.2 Unix 版）；本文件与 PRD 冲突时以 PRD 为准。
 
 ---
 
