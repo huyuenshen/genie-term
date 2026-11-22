@@ -6,9 +6,6 @@
 from __future__ import annotations
 
 import json
-import os
-import sys
-from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -19,7 +16,6 @@ from genie_term.errors import (
     MissingTorchError,
     UsageError,
 )
-
 
 runner = CliRunner()
 
@@ -92,7 +88,7 @@ class TestSayCommand:
     def test_say_no_text(self, isolated_env):
         with pytest.raises(UsageError) as excinfo:
             runner.invoke(app, ["say"], catch_exceptions=False)
-        assert "没有合成文本" in str(excinfo.value)
+        assert "没有收到文本" in str(excinfo.value)
 
     def test_say_unknown_character(self, isolated_env):
         with pytest.raises(UsageError) as excinfo:

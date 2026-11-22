@@ -236,10 +236,16 @@ def load_config() -> Config:
     return cfg
 
 
-def effective_data_dir() -> Path:
-    """解析最终生效的数据目录（config engine.data_dir 或平台默认）。"""
-    cfg = load_config()
-    engine_dir = cfg.get("engine.data_dir", "")
+def effective_data_dir(cli_override: str | None = None) -> Path:
+    """解析最终生效的数据目录。
+
+    PRD §4.1 优先级：CLI > 环境变量 > config.toml > 内置默认。
+    """
+    if cli_override:
+        return resolve_data_dir(cli_override)
+    if os.environ.get("GENIE_TERM_DATA_DIR"):
+        return resolve_data_dir()
+    engine_dir = load_config().get("engine.data_dir", "")
     if engine_dir:
         return Path(engine_dir).expanduser().resolve()
     return resolve_data_dir()

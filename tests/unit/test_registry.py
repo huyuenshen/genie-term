@@ -6,7 +6,6 @@ import pytest
 
 from genie_term.core.registry import (
     BASELINE_REQUIRED_FILES,
-    CURRENT_SCHEMA_VERSION,
     V2PROPLUS_REQUIRED_FILES,
     load_registry,
 )

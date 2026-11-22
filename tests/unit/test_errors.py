@@ -5,8 +5,6 @@ PRD §4.1 退出码写死不可漂移。
 
 from __future__ import annotations
 
-import pytest
-
 from genie_term.errors import (
     EXIT_ENGINE,
     EXIT_ENV,
@@ -16,9 +14,8 @@ from genie_term.errors import (
     EXIT_OK,
     EXIT_PLAYBACK,
     EXIT_USAGE,
-    EnvError,
     EngineError,
-    GenieTermError,
+    EnvError,
     MissingTorchError,
     NetworkError,
     PlaybackError,

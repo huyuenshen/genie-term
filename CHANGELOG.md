@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### Fixed（合规整改）
+
+- **退出码契约**：未知命令/未知参数改由 typer 内置 click 异常映射为退出码 2（原为 20）；`| head -1` 的 SIGPIPE 安静退出，不再报内部错误。
+- **PRD §4.1 全局选项**：新增 `--quiet` / `--no-color` / `--offline`（`context.py`），并尊重 `NO_COLOR`、`TERM=dumb`。
+- **say**：改用 `config engine.data_dir`（离线部署生效）；修正 `--play/--no-play` 布尔判定；文本优先级改为位置参数 > `-f` > stdin；显式 `-o` 文件也遵守 `--if-exists`；`--json` 补齐 `ok/character/output/duration_s/elapsed_ms`；新增首用角色下载确认与 `--offline`；缺少 GenieData 时先报错，绝不 import 上游。
+- **characters**：`list` 补齐参考音频/磁盘占用列；`--json` 改为紧凑单行；`<3s` 参考音频改为警告而非拒绝；`--version` 与文件推断冲突时以文件为准并告警；`remove --purge` 非 TTY 无 `--yes` 返回 2。
+- **download/init**：适配 huggingface_hub 2.x（移除 `local_dir_use_symlinks` / `resume_download`）；修正 RoBERTa 下载目录；新增 `--offline` 只校验模式；使用 `config network.hf_endpoint`；`init` 复用 download 层与 registry 单一清单。
+- **convert**：`--register` 现在会真正注册，支持 `--prompt-wav/--prompt-text/--lang` 并强制校验参考音频；按 `--version` 校验 7/9 个产物文件。
+- **serve**：新增 `--json` 启动信息；非交互公开监听明确返回 2。
+- **doctor**：检查项 7 校验角色模型必需文件；检查项 8 校验参考音频可解码与时长；末尾输出一键修复命令清单。
+- **工程化**：新增 `__main__.py`、`download/presets.py`、`core/log.py`（文本只记长度+哈希）、根 `LICENSE`；`ruff check src tests` 基线恢复全绿；离线测试 81 个。
+
 ### 计划中（M4 里程碑）
 
 - 真实联网 `init` / `download character feibi` / `say` 端到端首声验证（391MB + 230MB）

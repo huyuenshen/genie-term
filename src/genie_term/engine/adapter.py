@@ -47,6 +47,12 @@ def check_genie_tts() -> tuple[bool, str | None]:
     if not data_dir.exists():
         return False, None
 
+    # 陷阱 2：GenieData 不完整时导入上游会 input() 挂起/EOFError
+    from ..download.verify import verify_genie_data
+
+    if verify_genie_data(data_dir / "GenieData"):
+        return False, None
+
     try:
         import genie_tts
         return True, getattr(genie_tts, "__version__", "unknown")

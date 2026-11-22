@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
-from genie_term.core.config import Config, DEFAULTS, VALID_LANGUAGES, VALID_PLAY_MODES, VALID_IF_EXISTS
-from genie_term.errors import UsageError
+from genie_term.core.config import (
+    DEFAULTS,
+    VALID_IF_EXISTS,
+    VALID_LANGUAGES,
+    VALID_PLAY_MODES,
+    Config,
+)
 
 
 class TestConfigDefaults:

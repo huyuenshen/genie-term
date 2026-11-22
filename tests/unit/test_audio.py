@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from genie_term.core.audio import (
@@ -29,7 +27,7 @@ class TestPromptAudioCheck:
         assert not is_supported_prompt("ref.m4a")
 
     def test_allowed_exts_set(self):
-        assert PROMPT_ALLOWED_EXTS == {".wav", ".flac", ".ogg", ".aiff", ".aif"}
+        assert {".wav", ".flac", ".ogg", ".aiff", ".aif"} == PROMPT_ALLOWED_EXTS
 
     def test_missing_file(self, tmp_path):
         ok, problems = check_prompt_audio(tmp_path / "nonexist.wav")

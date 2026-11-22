@@ -87,34 +87,45 @@ def _probe_wav_duration(path: Path) -> float | None:
         return None
 
 
-def check_prompt_audio(path: str | Path) -> tuple[bool, list[str]]:
-    """检查参考音频是否合格。
+def inspect_prompt_audio(path: str | Path) -> tuple[list[str], list[str]]:
+    """检查参考音频，区分致命错误与警告。
+
+    PRD §4.6：时长 3–15 秒最佳（<3s 警告，>20s 拒绝）。
 
     Returns:
-        (是否通过, 问题列表)
+        (errors, warnings)：errors 非空即拒绝注册；warnings 仅提示。
     """
-    problems: list[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
     p = Path(path)
 
     if not p.exists():
-        problems.append(f"文件不存在: {path}")
-        return False, problems
+        return [f"文件不存在: {path}"], warnings
 
     if not is_supported_prompt(p):
-        problems.append(
+        return [
             f"扩展名 {p.suffix} 不在白名单内 ({sorted(PROMPT_ALLOWED_EXTS)})"
-        )
-        return False, problems
+        ], warnings
 
     duration = probe_duration(p)
     if duration is None:
-        problems.append("无法探测音频时长")
+        errors.append("无法探测音频时长（文件可能损坏或格式不受支持）")
     elif duration < 3:
-        problems.append(f"音频时长 {duration:.1f}s 太短（<3s，建议 3-15s）")
+        warnings.append(f"音频时长 {duration:.1f}s 偏短（建议 3–15s）")
     elif duration > 20:
-        problems.append(f"音频时长 {duration:.1f}s 超过上限 20s")
+        errors.append(f"音频时长 {duration:.1f}s 超过上限 20s")
 
-    return len(problems) == 0, problems
+    return errors, warnings
+
+
+def check_prompt_audio(path: str | Path) -> tuple[bool, list[str]]:
+    """检查参考音频是否合格（兼容包装）。
+
+    Returns:
+        (是否通过, 问题列表)：是否通过只看致命错误。
+    """
+    errors, warnings = inspect_prompt_audio(path)
+    return len(errors) == 0, errors + warnings
 
 
 def verify_product(path: str | Path) -> tuple[bool, str | None]:

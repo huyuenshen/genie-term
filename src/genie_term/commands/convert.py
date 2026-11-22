@@ -1,12 +1,13 @@
 """commands/convert.py —— GPT-SoVITS 模型转换为 ONNX。
 
-PRD §4.8：
+PRD §4.8 / §5.2：
   genie-term convert --pth a.pth --ckpt a.ckpt [--version v2|v2ProPlus] \\
                     --name NAME [--out DIR] [--register/--no-register] [--json]
 
 关键约束：
   - 缺 torch → 退出码 21，**只给一条**正确命令
-  - 流程：校验 → 临时目录 → convert_to_onnx → 校验 9 文件 → 原子改名 → 询问注册
+  - 流程：校验 → 临时目录 → convert_to_onnx → 校验产物 → 原子改名 → 注册
+  - convert --register 时同样强制校验参考音频（--prompt-wav/--prompt-text）
   - 失败清临时 + 码 20
 """
 
@@ -21,6 +22,8 @@ from pathlib import Path
 
 import typer
 
+from genie_term import context
+from genie_term.core.registry import BASELINE_REQUIRED_FILES, V2PROPLUS_REQUIRED_FILES
 from genie_term.errors import (
     EXIT_OK,
     EngineError,
@@ -35,31 +38,23 @@ app = typer.Typer(
     invoke_without_command=True,
 )
 
-# 转换后必需的 9 个文件
-REQUIRED_CONVERT_FILES = [
-    "t2s_encoder_fp32.bin",
-    "t2s_encoder_fp32.onnx",
-    "t2s_first_stage_decoder_fp32.onnx",
-    "t2s_shared_fp16.bin",
-    "t2s_stage_decoder_fp32.onnx",
-    "vits_fp16.bin",
-    "vits_fp32.onnx",
-    # v2ProPlus 才有的两个（但我们先假设 v2ProPlus 格式，下游按文件推断）
-    "prompt_encoder_fp16.bin",
-    "prompt_encoder_fp32.onnx",
-]
-
-# 目录结构约束
-# CharacterModels/<version>/<name>/tts_models + prompt_wav.json
-
 TORCH_INSTALL_CMD = (
     "pipx inject genie-term torch --index-url "
     "https://download.pytorch.org/whl/cpu"
 )
 
+_VALID_VERSIONS = {"v2", "v2ProPlus"}
+_VALID_LANGUAGES = {"zh", "en", "jp"}
+
+
+def _required_files(version: str) -> list[str]:
+    files = list(BASELINE_REQUIRED_FILES)
+    if version == "v2ProPlus":
+        files.extend(V2PROPLUS_REQUIRED_FILES)
+    return files
+
 
 def _check_torch() -> None:
-    """检查 torch 是否可导入，不可则抛 MissingTorchError（码 21）。"""
     try:
         import torch  # noqa: F401
     except ImportError:
@@ -79,14 +74,11 @@ def run_convert(
     name: str,
     version: str = "v2ProPlus",
     out_dir: str | None = None,
-    register: bool | None = None,
     json_flag: bool = False,
 ) -> Path:
     """执行转换，返回最终模型目录。"""
-    # torch 前置检查
     _check_torch()
 
-    # 输入校验
     pth_path = Path(pth).expanduser().resolve()
     ckpt_path = Path(ckpt).expanduser().resolve()
 
@@ -94,63 +86,106 @@ def run_convert(
         raise UsageError(f"pth 文件不存在: {pth_path}")
     if not ckpt_path.exists():
         raise UsageError(f"ckpt 文件不存在: {ckpt_path}")
-
-    if version not in {"v2", "v2ProPlus"}:
+    if version not in _VALID_VERSIONS:
         raise UsageError(
             f"--version 必须是 v2 或 v2ProPlus，当前: {version}",
+            fix="genie-term convert --version v2|v2ProPlus ...",
         )
 
-    # 输出目录
-    from genie_term.core.paths import resolve_data_dir
+    from genie_term.core.paths import effective_data_dir
 
-    data_dir = resolve_data_dir()
-    base_out = Path(out_dir).expanduser().resolve() if out_dir else data_dir / "CharacterModels" / version / name
-    base_out.mkdir(parents=True, exist_ok=True)
+    data_dir = effective_data_dir()
+    if out_dir:
+        target = Path(out_dir).expanduser().resolve()
+    else:
+        target = data_dir / "CharacterModels" / version / name / "tts_models"
 
-    # 临时目录（用于 convert，原子改名到最终位置）
     tmp_dir = Path(tempfile.mkdtemp(prefix="genie_convert_"))
     try:
-        # 确保 env 注入 + 调用上游 convert_to_onnx
-        from genie_term.core.paths import resolve_data_dir as _resolve
         from genie_term.engine.adapter import ensure_env
-        ensure_env(data_dir=str(_resolve()))
+
+        ensure_env(data_dir=str(data_dir))
 
         from genie_term.engine import adapter
-        typer.echo(f"转换中: {pth_path.name} + {ckpt_path.name} → {tmp_dir}", err=True)
-        adapter.convert(str(pth_path), str(ckpt_path), str(tmp_dir))
-        typer.echo("  ✓ 转换完成", err=True)
 
-        # 校验产物
-        missing = [f for f in REQUIRED_CONVERT_FILES if not (tmp_dir / f).exists()]
+        context.info(f"转换中: {pth_path.name} + {ckpt_path.name} → {tmp_dir}")
+        adapter.convert(str(pth_path), str(ckpt_path), str(tmp_dir))
+        context.info("  ✓ 转换完成")
+
+        missing = [f for f in _required_files(version) if not (tmp_dir / f).exists()]
         if missing:
             raise EngineError(
                 f"转换产物缺少必需文件: {', '.join(missing)}",
                 location=str(tmp_dir),
-                fix="检查 .pth/.ckpt 是否匹配 v2ProPlus 格式",
+                fix="检查 .pth/.ckpt 是否匹配所选 --version 格式",
             )
 
-        # 原子移动到最终位置
-        target = base_out / "tts_models"
         if target.exists():
             shutil.rmtree(target)
         target.parent.mkdir(parents=True, exist_ok=True)
         os.replace(str(tmp_dir), str(target))
-        typer.echo(f"✅ 模型已就位: {target}", err=True)
-
+        context.info(f"✅ 模型已就位: {target}")
         return target
 
     except EngineError:
-        if tmp_dir.exists():
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
-    except Exception as exc:
-        if tmp_dir.exists():
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+    except KeyboardInterrupt:
+        # PRD §4.1：Ctrl-C 清理临时文件，退出码 130（由 cli.main 映射）
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+    except Exception as exc:  # noqa: BLE001 - 统一转 EngineError
+        shutil.rmtree(tmp_dir, ignore_errors=True)
         raise EngineError(
             f"转换失败: {exc}",
             location=str(tmp_dir),
             fix="运行 genie-term doctor 检查环境；确认 .pth 和 .ckpt 格式正确",
         ) from exc
+
+
+def _register_converted(
+    *,
+    name: str,
+    target: Path,
+    version: str,
+    language: str,
+    prompt_wav: str | None,
+    prompt_text: str | None,
+) -> None:
+    """PRD §4.8/§5.2：注册转换后的角色，参考音频必填成对。"""
+    from genie_term.core.audio import inspect_prompt_audio
+    from genie_term.core.registry import load_registry
+
+    if not prompt_wav or not prompt_text:
+        raise UsageError(
+            "convert --register 需要 --prompt-wav 与 --prompt-text",
+            fix=f"genie-term convert --pth a.pth --ckpt a.ckpt --name {name} "
+                f"--register --prompt-wav ref.wav --prompt-text '参考音频内容'",
+        )
+
+    errors, warnings = inspect_prompt_audio(prompt_wav)
+    if errors:
+        raise UsageError(
+            "参考音频不合格:\n  " + "\n  ".join(errors),
+            fix="使用 3–15 秒的 .wav/.flac/.ogg/.aiff/.aif 音频",
+        )
+    for warning in warnings:
+        context.info(f"⚠ 参考音频: {warning}")
+
+    reg = load_registry()
+    reg.add(
+        name,
+        {
+            "kind": "converted",
+            "language": language,
+            "model_version": version,
+            "model_dir": str(target),
+            "prompt_wav": str(Path(prompt_wav).expanduser().resolve()),
+            "prompt_text": prompt_text,
+        },
+        force=True,
+    )
+    reg.save()
 
 
 # ========== Typer 命令 ==========
@@ -162,12 +197,21 @@ def _callback(
     ckpt: str = typer.Option(..., "--ckpt", help="GPT-SoVITS .ckpt 文件路径"),
     name: str = typer.Option(..., "--name", help="角色名称（用于注册）"),
     version: str = typer.Option("v2ProPlus", "--version", help="v2|v2ProPlus"),
-    out_dir: str | None = typer.Option(None, "--out", help="输出根目录（默认 ~/.local/share/genie-term/CharacterModels/<version>/<name>）"),
+    out_dir: str | None = typer.Option(None, "--out", help="输出模型目录（默认 <data_dir>/CharacterModels/<version>/<name>/tts_models）"),
     register: bool | None = typer.Option(None, "--register/--no-register", help="转换后自动注册"),
+    language: str = typer.Option("zh", "--lang", help="注册语言 zh|en|jp"),
+    prompt_wav: str | None = typer.Option(None, "--prompt-wav", help="参考音频（注册时必填）"),
+    prompt_text: str | None = typer.Option(None, "--prompt-text", help="参考音频文本（注册时必填）"),
     json_flag: bool = typer.Option(False, "--json", help="输出 JSON"),
 ) -> None:
     if ctx.invoked_subcommand is not None:
         return
+
+    if language not in _VALID_LANGUAGES:
+        raise UsageError(
+            f"--lang 取值非法: {language}",
+            fix="允许: zh|en|jp",
+        )
 
     target = run_convert(
         pth=pth,
@@ -175,11 +219,9 @@ def _callback(
         name=name,
         version=version,
         out_dir=out_dir,
-        register=register,
         json_flag=json_flag,
     )
 
-    # 注册逻辑
     if register is None:
         if sys.stdin.isatty():
             do_register = typer.confirm("转换成功！是否现在注册此角色？")
@@ -188,18 +230,37 @@ def _callback(
     else:
         do_register = register
 
+    registered = False
     if do_register:
-        # 提示用户需要提供 prompt-wav 和 prompt-text
-        typer.echo(
-            "注册需要额外信息，请运行:\n"
-            f"  genie-term characters add {name} --model-dir {target} "
-            f"--lang zh --prompt-wav ref.wav --prompt-text '参考音频内容'",
-            err=True,
+        _register_converted(
+            name=name,
+            target=target,
+            version=version,
+            language=language,
+            prompt_wav=prompt_wav,
+            prompt_text=prompt_text,
         )
+        registered = True
 
     if json_flag:
-        typer.echo(_json.dumps({"model_dir": str(target), "name": name}))
+        typer.echo(_json.dumps(
+            {
+                "ok": True,
+                "name": name,
+                "model_dir": str(target),
+                "registered": registered,
+            },
+            ensure_ascii=False,
+        ))
     else:
         typer.echo(f"✅ 转换完成: {target}")
+        if registered:
+            typer.echo(f"✅ 角色 '{name}' 已注册")
+        elif not do_register:
+            typer.echo(
+                f"未注册。注册命令: genie-term characters add {name} "
+                f"--model-dir {target} --lang {language} "
+                f"--prompt-wav ref.wav --prompt-text '参考音频内容'"
+            )
 
     raise typer.Exit(code=EXIT_OK)

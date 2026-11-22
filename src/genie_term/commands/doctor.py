@@ -238,15 +238,26 @@ def _check_registered_models() -> CheckResult:
         if not characters:
             return CheckResult("models", "ok", "无已注册角色")
 
+        from genie_term.download.verify import verify_model_files
+
         for name, char_data in characters.items():
             model_dir = char_data.get("model_dir", "")
             if not model_dir or not Path(model_dir).exists():
                 return CheckResult(
                     "models", "error",
                     f"角色 {name} 模型目录缺失: {model_dir}",
-                    fix=f"genie-term characters remove {name} --purge && genie-term download character {name}",
+                    fix=f"genie-term download character {name} --yes",
                 )
-        return CheckResult("models", "ok", f"{len(characters)} 个角色模型存在")
+            missing = verify_model_files(
+                model_dir, char_data.get("model_version", "v2")
+            )
+            if missing:
+                return CheckResult(
+                    "models", "error",
+                    f"角色 {name} 缺少必需文件: {', '.join(missing)}",
+                    fix=f"重新获取模型: genie-term download character {name} --yes",
+                )
+        return CheckResult("models", "ok", f"{len(characters)} 个角色模型完整")
     except Exception as exc:
         return CheckResult("models", "warn", f"模型检查跳过: {exc}")
 
@@ -266,20 +277,33 @@ def _check_ref_audio() -> CheckResult:
             return CheckResult("ref_audio", "warn", "注册表无法读取")
 
         characters = data.get("characters", {})
-        missing: list[str] = []
+        errors: list[str] = []
+        warnings: list[str] = []
         for name, char_data in characters.items():
             prompt_wav = char_data.get("prompt_wav", "")
-            if prompt_wav and not Path(prompt_wav).exists():
-                missing.append(name)
+            if not prompt_wav:
+                errors.append(f"{name}: 未设置参考音频")
+                continue
+            from genie_term.core.audio import inspect_prompt_audio
 
-        if missing:
+            errs, warns = inspect_prompt_audio(prompt_wav)
+            errors.extend(f"{name}: {e}" for e in errs)
+            warnings.extend(f"{name}: {w}" for w in warns)
+
+        if errors:
             return CheckResult(
                 "ref_audio", "error",
-                f"角色 {', '.join(missing)} 参考音频文件缺失",
+                "参考音频不可用: " + "; ".join(errors),
                 fix="重新注册角色: genie-term characters add ...",
             )
+        if warnings:
+            return CheckResult(
+                "ref_audio", "warn",
+                "参考音频可用但有警告: " + "; ".join(warnings),
+                fix="建议使用 3–15 秒参考音频重新注册",
+            )
         if characters:
-            return CheckResult("ref_audio", "ok", "所有参考音频存在")
+            return CheckResult("ref_audio", "ok", "所有参考音频存在且时长合理")
         return CheckResult("ref_audio", "ok", "无注册角色")
     except Exception as exc:
         return CheckResult("ref_audio", "warn", f"参考音频检查跳过: {exc}")
@@ -446,6 +470,17 @@ def _callback(
             typer.echo("仅有 ⚠ 警告 —— 可以继续，但建议关注")
         else:
             typer.echo("全部 ✔ —— 环境就绪！")
+
+        # PRD §4.4：末尾给出一键修复命令清单
+        fixes: list[str] = []
+        for c in checks:
+            if c.fix and c.fix not in fixes:
+                fixes.append(c.fix)
+        if fixes:
+            typer.echo("")
+            typer.echo("一键修复命令（按需复制执行）:")
+            for fix in fixes:
+                typer.echo(f"  {fix}")
 
     # 直接 sys.exit 确保退出码正确传播（typer.Exit 在子命令组里可能被吞）
     import sys
